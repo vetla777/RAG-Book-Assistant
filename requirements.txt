@@ -10,10 +10,7 @@ langchain
 langchain-core
 langchain-text-splitters
 langchain-community
-<<<<<<< HEAD
 langchain-huggingface
-=======
->>>>>>> 6ccc6e4dab899cf5abbebd1b8c4f5802279ccbda
 
 # LLMs
 langchain-mistralai
@@ -30,10 +27,7 @@ langchain-chroma
 
 # Embeddings
 sentence-transformers
-<<<<<<< HEAD
 transformers
-=======
->>>>>>> 6ccc6e4dab899cf5abbebd1b8c4f5802279ccbda
 
 # Machine Learning / Numerical
 numpy
