@@ -111,7 +111,7 @@ def get_llm():
 
     return ChatMistralAI(
         model="mistral-small-2603",
-        api_key=st.secrets["9tyAVxRAtCzQuj8y0C6RPBVXIuSSPzcy"]
+        api_key=st.secrets["MISTRAL_API_KEY"]
     )
 
 
