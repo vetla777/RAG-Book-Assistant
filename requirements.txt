@@ -1,0 +1,43 @@
+# ==============================
+# RAG Application
+# ==============================
+
+# Environment Variables
+python-dotenv
+
+# LangChain
+langchain
+langchain-core
+langchain-text-splitters
+langchain-community
+langchain-huggingface
+
+# LLMs
+langchain-mistralai
+langchain-openai
+openai
+mistralai
+
+# PDF / Document Loading
+pypdf
+
+# Vector Database
+chromadb
+langchain-chroma
+
+# Embeddings
+sentence-transformers
+transformers
+
+# Machine Learning / Numerical
+numpy
+scikit-learn
+
+# API / UI
+fastapi
+uvicorn
+streamlit
+
+# HTTP
+requests
+httpx
