@@ -20,6 +20,37 @@ from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
+
+# --------------------------------------------------
+# Get Mistral API Key
+# --------------------------------------------------
+
+def get_mistral_api_key():
+    """
+    Get Mistral API key.
+    Streamlit Cloud -> st.secrets
+    Local machine -> .env
+    """
+
+    # First try Streamlit Cloud Secrets
+    try:
+        api_key = st.secrets.get("MISTRAL_API_KEY")
+
+        if api_key:
+            return api_key
+
+    except Exception:
+        pass
+
+    # Then try .env
+    api_key = os.getenv("MISTRAL_API_KEY")
+
+    if api_key:
+        return api_key
+
+    return None
+
+
 # --------------------------------------------------
 # Create a writable temporary directory for ChromaDB
 # --------------------------------------------------
@@ -79,7 +110,8 @@ def get_embeddings():
 def get_llm():
 
     return ChatMistralAI(
-        model="mistral-small-2603"
+        model="mistral-small-2603",
+        api_key=st.secrets["9tyAVxRAtCzQuj8y0C6RPBVXIuSSPzcy"]
     )
 
 
@@ -180,7 +212,9 @@ if uploaded_file:
                         ignore_errors=True
                     )
 
+
                 # Recreate writable directory
+
                 os.makedirs(
                     CHROMA_PATH,
                     exist_ok=True
@@ -244,6 +278,7 @@ if uploaded_file:
                 f"❌ Error while creating vector database:\n\n{e}"
             )
 
+
         finally:
 
             # ------------------------------------------
@@ -287,57 +322,59 @@ if st.session_state.get(
             "Searching the document..."
         ):
 
-            # ------------------------------------------
-            # Get vector database
-            # ------------------------------------------
+            try:
 
-            vectorstore = st.session_state[
-                "vectorstore"
-            ]
+                # ------------------------------------------
+                # Get vector database
+                # ------------------------------------------
 
-
-            # ------------------------------------------
-            # MMR Retriever
-            # ------------------------------------------
-
-            retriever = vectorstore.as_retriever(
-                search_type="mmr",
-                search_kwargs={
-                    "k": 4,
-                    "fetch_k": 10,
-                    "lambda_mult": 0.5
-                }
-            )
+                vectorstore = st.session_state[
+                    "vectorstore"
+                ]
 
 
-            # ------------------------------------------
-            # Retrieve relevant documents
-            # ------------------------------------------
+                # ------------------------------------------
+                # MMR Retriever
+                # ------------------------------------------
 
-            retrieved_docs = retriever.invoke(
-                query
-            )
-
-
-            # ------------------------------------------
-            # Create context
-            # ------------------------------------------
-
-            context = "\n\n".join(
-                doc.page_content
-                for doc in retrieved_docs
-            )
+                retriever = vectorstore.as_retriever(
+                    search_type="mmr",
+                    search_kwargs={
+                        "k": 4,
+                        "fetch_k": 10,
+                        "lambda_mult": 0.5
+                    }
+                )
 
 
-            # ------------------------------------------
-            # Prompt
-            # ------------------------------------------
+                # ------------------------------------------
+                # Retrieve relevant documents
+                # ------------------------------------------
 
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    (
-                        "system",
-                        """
+                retrieved_docs = retriever.invoke(
+                    query
+                )
+
+
+                # ------------------------------------------
+                # Create context
+                # ------------------------------------------
+
+                context = "\n\n".join(
+                    doc.page_content
+                    for doc in retrieved_docs
+                )
+
+
+                # ------------------------------------------
+                # Prompt
+                # ------------------------------------------
+
+                prompt = ChatPromptTemplate.from_messages(
+                    [
+                        (
+                            "system",
+                            """
 You are a helpful AI assistant.
 
 Answer the question using ONLY the
@@ -350,10 +387,10 @@ context, say:
 
 Do not make up information.
 """
-                    ),
-                    (
-                        "human",
-                        """
+                        ),
+                        (
+                            "human",
+                            """
 Context:
 
 {context}
@@ -362,64 +399,80 @@ Question:
 
 {question}
 """
-                    )
-                ]
-            )
+                        )
+                    ]
+                )
 
 
-            # ------------------------------------------
-            # Create final prompt
-            # ------------------------------------------
+                # ------------------------------------------
+                # Create final prompt
+                # ------------------------------------------
 
-            final_prompt = prompt.invoke(
-                {
-                    "context": context,
-                    "question": query
-                }
-            )
-
-
-            # ------------------------------------------
-            # Mistral LLM
-            # ------------------------------------------
-
-            llm = get_llm()
-
-            response = llm.invoke(
-                final_prompt
-            )
+                final_prompt = prompt.invoke(
+                    {
+                        "context": context,
+                        "question": query
+                    }
+                )
 
 
-        # ------------------------------------------
-        # Display AI Answer
-        # ------------------------------------------
+                # ------------------------------------------
+                # Mistral LLM
+                # ------------------------------------------
 
-        st.subheader(
-            "🤖 AI Answer"
-        )
-
-        st.write(
-            response.content
-        )
+                llm = get_llm()
 
 
-        # ------------------------------------------
-        # Show retrieved chunks
-        # ------------------------------------------
+                # ------------------------------------------
+                # Generate answer
+                # ------------------------------------------
 
-        with st.expander(
-            "🔍 View Retrieved Chunks"
-        ):
+                response = llm.invoke(
+                    final_prompt
+                )
 
-            for i, doc in enumerate(
-                retrieved_docs,
-                start=1
-            ):
 
-                st.markdown(
-                    f"**Chunk {i}**"
+                # ------------------------------------------
+                # Display AI Answer
+                # ------------------------------------------
+
+                st.subheader(
+                    "🤖 AI Answer"
                 )
 
                 st.write(
-                    doc.page_content
+                    response.content
+                )
+
+
+                # ------------------------------------------
+                # Show retrieved chunks
+                # ------------------------------------------
+
+                with st.expander(
+                    "🔍 View Retrieved Chunks"
+                ):
+
+                    for i, doc in enumerate(
+                        retrieved_docs,
+                        start=1
+                    ):
+
+                        st.markdown(
+                            f"**Chunk {i}**"
+                        )
+
+                        st.write(
+                            doc.page_content
+                        )
+
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Mistral API Error"
+                )
+
+                st.code(
+                    str(e)
                 )
