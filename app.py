@@ -20,8 +20,19 @@ from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
-CHROMA_PATH = "./chroma_db"
+# --------------------------------------------------
+# Create a writable temporary directory for ChromaDB
+# --------------------------------------------------
+
+if "chroma_path" not in st.session_state:
+    st.session_state["chroma_path"] = tempfile.mkdtemp(
+        prefix="rag_book_assistant_"
+    )
+
+CHROMA_PATH = st.session_state["chroma_path"]
+
 COLLECTION_NAME = "rag_documents"
+
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
@@ -36,7 +47,10 @@ st.set_page_config(
 )
 
 st.title("📚 RAG Book Assistant")
-st.write("Upload a PDF and ask questions from the document")
+
+st.write(
+    "Upload a PDF and ask questions from the document"
+)
 
 
 # --------------------------------------------------
@@ -58,7 +72,7 @@ def get_embeddings():
 
 
 # --------------------------------------------------
-# Load Mistral
+# Load Mistral LLM
 # --------------------------------------------------
 
 @st.cache_resource
@@ -105,16 +119,22 @@ if uploaded_file:
                     suffix=".pdf"
                 ) as tmp_file:
 
-                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_file.write(
+                        uploaded_file.getvalue()
+                    )
+
                     file_path = tmp_file.name
 
-                st.write("📄 Loading PDF...")
 
                 # ------------------------------------------
                 # Load PDF
                 # ------------------------------------------
 
-                loader = PyPDFLoader(file_path)
+                st.write("📄 Loading PDF...")
+
+                loader = PyPDFLoader(
+                    file_path
+                )
 
                 docs = loader.load()
 
@@ -122,25 +142,31 @@ if uploaded_file:
                     f"📄 Pages loaded: {len(docs)}"
                 )
 
+
                 # ------------------------------------------
                 # Split document
                 # ------------------------------------------
 
-                st.write("✂️ Splitting document...")
+                st.write(
+                    "✂️ Splitting document..."
+                )
 
                 splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000,
                     chunk_overlap=200
                 )
 
-                chunks = splitter.split_documents(docs)
+                chunks = splitter.split_documents(
+                    docs
+                )
 
                 st.write(
                     f"📦 Number of chunks: {len(chunks)}"
                 )
 
+
                 # ------------------------------------------
-                # Delete old Chroma database
+                # Create a fresh Chroma directory
                 # ------------------------------------------
 
                 if os.path.exists(CHROMA_PATH):
@@ -149,7 +175,17 @@ if uploaded_file:
                         "🗑️ Removing old vector database..."
                     )
 
-                    shutil.rmtree(CHROMA_PATH)
+                    shutil.rmtree(
+                        CHROMA_PATH,
+                        ignore_errors=True
+                    )
+
+                # Recreate writable directory
+                os.makedirs(
+                    CHROMA_PATH,
+                    exist_ok=True
+                )
+
 
                 # ------------------------------------------
                 # Load embedding model
@@ -160,6 +196,7 @@ if uploaded_file:
                 )
 
                 embeddings = get_embeddings()
+
 
                 # ------------------------------------------
                 # Create ChromaDB
@@ -176,21 +213,30 @@ if uploaded_file:
                     persist_directory=CHROMA_PATH
                 )
 
+
                 # ------------------------------------------
-                # Store in session
+                # Store vector database in session
                 # ------------------------------------------
 
                 st.session_state["vectorstore"] = vectorstore
+
                 st.session_state["db_ready"] = True
+
+
+                # ------------------------------------------
+                # Update status
+                # ------------------------------------------
 
                 status.update(
                     label="Vector database created successfully!",
                     state="complete"
                 )
 
+
             st.success(
                 f"✅ Vector database created with {len(chunks)} chunks!"
             )
+
 
         except Exception as e:
 
@@ -200,59 +246,55 @@ if uploaded_file:
 
         finally:
 
+            # ------------------------------------------
             # Remove temporary PDF
-            if "file_path" in locals() and os.path.exists(file_path):
-                os.remove(file_path)
+            # ------------------------------------------
 
+            if (
+                "file_path" in locals()
+                and os.path.exists(file_path)
+            ):
 
-# --------------------------------------------------
-# Load Existing Vector Database
-# --------------------------------------------------
-
-if (
-    not st.session_state.get("db_ready", False)
-    and os.path.exists(CHROMA_PATH)
-):
-
-    try:
-
-        embeddings = get_embeddings()
-
-        vectorstore = Chroma(
-            collection_name=COLLECTION_NAME,
-            persist_directory=CHROMA_PATH,
-            embedding_function=embeddings
-        )
-
-        st.session_state["vectorstore"] = vectorstore
-        st.session_state["db_ready"] = True
-
-    except Exception as e:
-
-        st.warning(
-            f"Existing Chroma database could not be loaded: {e}"
-        )
+                os.remove(
+                    file_path
+                )
 
 
 # --------------------------------------------------
 # Question Answering
 # --------------------------------------------------
 
-if st.session_state.get("db_ready", False):
+if st.session_state.get(
+    "db_ready",
+    False
+):
 
     st.divider()
 
-    st.subheader("💬 Ask Questions From the Book")
+    st.subheader(
+        "💬 Ask Questions From the Book"
+    )
+
 
     query = st.text_input(
         "Enter your question"
     )
 
+
     if query:
 
-        with st.spinner("Searching the document..."):
+        with st.spinner(
+            "Searching the document..."
+        ):
 
-            vectorstore = st.session_state["vectorstore"]
+            # ------------------------------------------
+            # Get vector database
+            # ------------------------------------------
+
+            vectorstore = st.session_state[
+                "vectorstore"
+            ]
+
 
             # ------------------------------------------
             # MMR Retriever
@@ -267,16 +309,25 @@ if st.session_state.get("db_ready", False):
                 }
             )
 
-            retrieved_docs = retriever.invoke(query)
 
             # ------------------------------------------
-            # Create Context
+            # Retrieve relevant documents
+            # ------------------------------------------
+
+            retrieved_docs = retriever.invoke(
+                query
+            )
+
+
+            # ------------------------------------------
+            # Create context
             # ------------------------------------------
 
             context = "\n\n".join(
                 doc.page_content
                 for doc in retrieved_docs
             )
+
 
             # ------------------------------------------
             # Prompt
@@ -315,6 +366,11 @@ Question:
                 ]
             )
 
+
+            # ------------------------------------------
+            # Create final prompt
+            # ------------------------------------------
+
             final_prompt = prompt.invoke(
                 {
                     "context": context,
@@ -322,8 +378,9 @@ Question:
                 }
             )
 
+
             # ------------------------------------------
-            # Mistral
+            # Mistral LLM
             # ------------------------------------------
 
             llm = get_llm()
@@ -332,11 +389,19 @@ Question:
                 final_prompt
             )
 
-        st.subheader("🤖 AI Answer")
+
+        # ------------------------------------------
+        # Display AI Answer
+        # ------------------------------------------
+
+        st.subheader(
+            "🤖 AI Answer"
+        )
 
         st.write(
             response.content
         )
+
 
         # ------------------------------------------
         # Show retrieved chunks
