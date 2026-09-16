@@ -10,7 +10,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
-from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
 
@@ -25,7 +25,7 @@ load_dotenv()
 # Get Mistral API Key
 # --------------------------------------------------
 
-def get_mistral_api_key():
+def get_gemini_api_key():
     """
     Get Mistral API key.
     Streamlit Cloud -> st.secrets
@@ -34,7 +34,7 @@ def get_mistral_api_key():
 
     # First try Streamlit Cloud Secrets
     try:
-        api_key = st.secrets.get("MISTRAL_API_KEY")
+        api_key = st.secrets.get("GEMINI_API_KEY")
 
         if api_key:
             return api_key
@@ -43,7 +43,7 @@ def get_mistral_api_key():
         pass
 
     # Then try .env
-    api_key = os.getenv("MISTRAL_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
     if api_key:
         return api_key
@@ -109,9 +109,9 @@ def get_embeddings():
 @st.cache_resource
 def get_llm():
 
-    return ChatMistralAI(
-        model="mistral-small-2603",
-        api_key=st.secrets["MISTRAL_API_KEY"]
+    return ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash",
+        api_key=os.getenv("GEMINI_API_KEY")
     )
 
 
@@ -470,7 +470,7 @@ Question:
             except Exception as e:
 
                 st.error(
-                    "❌ Mistral API Error"
+                    "❌ Gemini API Error"
                 )
 
                 st.code(
